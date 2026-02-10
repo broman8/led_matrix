@@ -25,6 +25,32 @@ This component requires the [espressif/led_strip](https://components.espressif.c
 
 ### 1. Installation
 
+You can install this component in your ESP-IDF project using one of the following methods.
+
+#### Option A: IDF Component Manager (Recommended)
+To ensure you always have the latest version from GitHub, create or edit the `idf_component.yml` file in your project's `main` directory (e.g., `main/idf_component.yml`) and add the following dependency:
+
+```yaml
+dependencies:
+  led_matrix:
+    git: https://github.com/broman8/led_matrix.git
+    path: .
+    version: "*"
+```
+*   **Note**: This will fetch the latest version from the default branch (`main`) whenever you run a build (if the commit hash changes) or update dependencies.
+
+#### Option B: Git Submodule
+If you use Git for your project, you can add this repository as a submodule:
+
+```bash
+git submodule add https://github.com/broman8/led_matrix.git components/led_matrix
+```
+To update to the latest version later:
+```bash
+git submodule update --remote components/led_matrix
+```
+
+#### Option C: Manual Copy
 Copy this directory into the `components` folder of your ESP-IDF project.
 
 ### 2. CMakeLists.txt
