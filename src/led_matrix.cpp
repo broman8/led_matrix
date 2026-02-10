@@ -1,0 +1,86 @@
+#include "led_matrix.h"
+#include "esp_log.h"
+#include "font8x8_basic.h"
+#include <string.h>
+
+static const char *TAG = "led_matrix";
+static led_strip_handle_t led_strip;
+
+// 32x8 Matrix Mapping (Column Major ZigZag)
+// x: 0..31 (Left to Right), y: 0..7 (Top to Bottom)
+static uint32_t get_pixel_index(int x, int y) {
+  // Safety check
+  if (x < 0 || x >= MATRIX_WIDTH || y < 0 || y >= MATRIX_HEIGHT) {
+    return LED_STRIP_LEN; // Return out of bounds index
+  }
+
+  if (x % 2 == 0) {
+    // Even Column: Downwards (0 -> 7)
+    return (x * 8) + y;
+  } else {
+    // Odd Column: Upwards (7 -> 0)
+    return (x * 8) + (7 - y);
+  }
+}
+
+void led_matrix_init(int gpio_pin) {
+  ESP_LOGI(TAG, "Initializing LED Matrix on GPIO %d", gpio_pin);
+
+  led_strip_config_t strip_config = {
+      .strip_gpio_num = gpio_pin,
+      .max_leds = LED_STRIP_LEN,
+      .led_model = LED_MODEL_WS2812,
+      .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+      .flags = {.invert_out = false},
+  };
+
+  led_strip_rmt_config_t rmt_config = {
+      .clk_src = RMT_CLK_SRC_DEFAULT,
+      .resolution_hz = 10 * 1000 * 1000, // 10MHz
+      .mem_block_symbols = 0,            // Default
+      .flags = {.with_dma = false},
+  };
+
+  ESP_ERROR_CHECK(
+      led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+  led_matrix_clear();
+}
+
+void led_matrix_clear() { led_strip_clear(led_strip); }
+
+void led_matrix_set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+  uint32_t idx = get_pixel_index(x, y);
+  if (idx < LED_STRIP_LEN) {
+    led_strip_set_pixel(led_strip, idx, r, g, b);
+  }
+}
+
+void led_matrix_refresh() { led_strip_refresh(led_strip); }
+
+void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g,
+                          uint8_t b) {
+  int text_len = strlen(text);
+  int text_pixel_width = text_len * 8; // 8x8 font
+
+  for (int x = 0; x < MATRIX_WIDTH; x++) {
+    int text_col = x + x_offset;
+
+    if (text_col >= 0 && text_col < text_pixel_width) {
+      int char_idx = text_col / 8;
+      int col_in_char = text_col % 8;
+
+      if (char_idx < text_len) {
+        char c = text[char_idx];
+        if (c >= 32 && c <= 126) {
+          const uint8_t *bitmap = font8x8_basic[c - 32];
+          for (int y = 0; y < MATRIX_HEIGHT; y++) {
+            uint8_t row_data = bitmap[y];
+            if (row_data & (0x80 >> col_in_char)) {
+              led_matrix_set_pixel(x, y, r, g, b);
+            }
+          }
+        }
+      }
+    }
+  }
+}
