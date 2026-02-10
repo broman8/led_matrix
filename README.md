@@ -103,5 +103,5 @@ void app_main(void) {
 * `void led_matrix_init(int gpio_pin)`: Initializes the RMT LED strip driver.
 * `void led_matrix_clear()`: Turns off all LEDs (does not refresh automatically).
 * `void led_matrix_set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b)`: Sets the color of a specific pixel.
-* `void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g, uint8_t b, bool scroll, int delay_ms)`: Draws a string. If `scroll` is true, it animates from right to left (blocking). `x_offset` is used as start offset for static text. `delay_ms` sets the speed of scrolling.
+* `void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g, uint8_t b, bool scroll = false, int delay_ms = 50)`: Draws a string. If `scroll` is true, it animates from right to left (blocking). `x_offset` is used as start offset for static text. `delay_ms` sets the speed of scrolling.
 * `void led_matrix_refresh()`: Sends the buffer to the LED strip.

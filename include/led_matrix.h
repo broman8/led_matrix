@@ -15,4 +15,4 @@ void led_matrix_clear();
 void led_matrix_set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b);
 void led_matrix_refresh();
 void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g,
-                          uint8_t b, bool scroll, int delay_ms);
+                          uint8_t b, bool scroll = false, int delay_ms = 50);
