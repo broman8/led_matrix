@@ -1,6 +1,8 @@
 #include "led_matrix.h"
 #include "esp_log.h"
 #include "font8x8_basic.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include <string.h>
 
 static const char *TAG = "led_matrix";
@@ -58,29 +60,58 @@ void led_matrix_set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
 void led_matrix_refresh() { led_strip_refresh(led_strip); }
 
 void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g,
-                          uint8_t b) {
+                          uint8_t b, bool scroll, int delay_ms) {
   int text_len = strlen(text);
   int text_pixel_width = text_len * 8; // 8x8 font
 
-  for (int x = 0; x < MATRIX_WIDTH; x++) {
-    int text_col = x + x_offset;
+  int current_offset;
+  int end_offset = text_pixel_width;
 
-    if (text_col >= 0 && text_col < text_pixel_width) {
-      int char_idx = text_col / 8;
-      int col_in_char = text_col % 8;
+  if (scroll) {
+    current_offset = -MATRIX_WIDTH;
+  } else {
+    current_offset = x_offset;
+  }
 
-      if (char_idx < text_len) {
-        char c = text[char_idx];
-        if (c >= 32 && c <= 126) {
-          const uint8_t *bitmap = font8x8_basic[c - 32];
-          for (int y = 0; y < MATRIX_HEIGHT; y++) {
-            uint8_t row_data = bitmap[y];
-            if (row_data & (0x80 >> col_in_char)) {
-              led_matrix_set_pixel(x, y, r, g, b);
+  bool running = true;
+  while (running) {
+
+    if (scroll) {
+      led_matrix_clear();
+    }
+
+    // Render frame
+    for (int x = 0; x < MATRIX_WIDTH; x++) {
+      int text_col = x + current_offset;
+
+      if (text_col >= 0 && text_col < text_pixel_width) {
+        int char_idx = text_col / 8;
+        int col_in_char = text_col % 8;
+
+        if (char_idx < text_len) {
+          char c = text[char_idx];
+          if (c >= 32 && c <= 126) {
+            const uint8_t *bitmap = font8x8_basic[c - 32];
+            for (int y = 0; y < MATRIX_HEIGHT; y++) {
+              uint8_t row_data = bitmap[y];
+              if (row_data & (0x80 >> col_in_char)) {
+                led_matrix_set_pixel(x, y, r, g, b);
+              }
             }
           }
         }
       }
+    }
+
+    if (scroll) {
+      led_matrix_refresh();
+      vTaskDelay(pdMS_TO_TICKS(delay_ms));
+      current_offset++;
+      if (current_offset > end_offset) {
+        running = false;
+      }
+    } else {
+      running = false; // Static mode runs once
     }
   }
 }
