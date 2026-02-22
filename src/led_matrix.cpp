@@ -3,7 +3,9 @@
 #include "font8x8_basic.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <stdlib.h>
 #include <string.h>
+
 
 static const char *TAG = "led_matrix";
 static led_strip_handle_t led_strip;
@@ -15,6 +17,10 @@ static uint32_t get_pixel_index(int x, int y) {
   if (x < 0 || x >= MATRIX_WIDTH || y < 0 || y >= MATRIX_HEIGHT) {
     return LED_STRIP_LEN; // Return out of bounds index
   }
+
+  // Rotate 180 degrees
+  x = MATRIX_WIDTH - 1 - x;
+  y = MATRIX_HEIGHT - 1 - y;
 
   if (x % 2 == 0) {
     // Even Column: Downwards (0 -> 7)
@@ -61,7 +67,37 @@ void led_matrix_refresh() { led_strip_refresh(led_strip); }
 
 void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g,
                           uint8_t b, bool scroll, int delay_ms) {
-  int text_len = strlen(text);
+  int original_len = strlen(text);
+  char *decoded = (char *)malloc(original_len + 1);
+  if (!decoded)
+    return;
+
+  int len = 0;
+  for (int i = 0; i < original_len; i++) {
+    if ((unsigned char)text[i] == 0xC3 && i + 1 < original_len) {
+      i++;
+      unsigned char c2 = (unsigned char)text[i];
+      if (c2 == 0x84)
+        decoded[len++] = 128; // Ä
+      else if (c2 == 0x96)
+        decoded[len++] = 129; // Ö
+      else if (c2 == 0x9C)
+        decoded[len++] = 130; // Ü
+      else if (c2 == 0xA4)
+        decoded[len++] = 131; // ä
+      else if (c2 == 0xB6)
+        decoded[len++] = 132; // ö
+      else if (c2 == 0xBC)
+        decoded[len++] = 133; // ü
+      else
+        decoded[len++] = '?';
+    } else {
+      decoded[len++] = text[i];
+    }
+  }
+  decoded[len] = '\0';
+
+  int text_len = len;
   int text_pixel_width = text_len * 8; // 8x8 font
 
   int current_offset;
@@ -91,9 +127,16 @@ void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g,
         int col_in_char = text_col % 8;
 
         if (char_idx < text_len) {
-          char c = text[char_idx];
+          unsigned char c = decoded[char_idx];
+          const uint8_t *bitmap = NULL;
+
           if (c >= 32 && c <= 126) {
-            const uint8_t *bitmap = font8x8_basic[c - 32];
+            bitmap = font8x8_basic[c - 32];
+          } else if (c >= 128 && c <= 133) {
+            bitmap = font8x8_basic[96 + (c - 128)];
+          }
+
+          if (bitmap != NULL) {
             for (int y = 0; y < MATRIX_HEIGHT; y++) {
               uint8_t row_data = bitmap[y];
               if (row_data & (0x80 >> col_in_char)) {
@@ -116,4 +159,5 @@ void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g,
       running = false; // Static mode runs once
     }
   }
+  free(decoded);
 }
