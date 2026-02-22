@@ -77,7 +77,9 @@ void led_matrix_draw_text(const char *text, int x_offset, uint8_t r, uint8_t g,
   while (running) {
 
     if (scroll) {
-      led_matrix_clear();
+      for (uint32_t i = 0; i < LED_STRIP_LEN; i++) {
+        led_strip_set_pixel(led_strip, i, 0, 0, 0);
+      }
     }
 
     // Render frame
